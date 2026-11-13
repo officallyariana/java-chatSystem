@@ -1,4 +1,4 @@
-# Enhanced Network-Based Chat System (Java)
+# Network-Based Chat System
 
 A university network-programming project using **Java 17+**, TCP sockets, threads, and persistent chat logs. No third-party libraries needed.
 
