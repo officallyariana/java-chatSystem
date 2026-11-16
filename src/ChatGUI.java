@@ -1,9 +1,13 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
@@ -27,7 +31,13 @@ public final class ChatGUI extends JFrame {
     private volatile String username = "";
     private String room = "lobby";
     private String privateWith;
+    // GUI state is accessed on the Swing event dispatch thread.
     private int sessionVersion = 0;
+    private long nextRequestId = 0;
+    private final Map<String, Long> pending = new HashMap<>();
+    private final JLabel ackLabel = new JLabel("ACK: —");
+    private final JLabel connectionLabel = new JLabel("● Offline");
+    private final Timer pendingTimer = new Timer(1_000, e -> expirePending());
 
     public ChatGUI() {
         super("Enhanced Java Chat");
@@ -41,7 +51,7 @@ public final class ChatGUI extends JFrame {
         login.add(new JLabel("Host:")); login.add(hostField);
         login.add(new JLabel("Port:")); login.add(portField);
         login.add(new JLabel("Username:")); login.add(nameField);
-        login.add(connectButton);
+        login.add(connectButton); login.add(connectionLabel);
         add(login, BorderLayout.NORTH);
 
         JPanel sidebar = new JPanel(new BorderLayout(5, 10));
@@ -85,6 +95,7 @@ public final class ChatGUI extends JFrame {
         JButton historyButton = new JButton("Load history");
         footer.add(historyButton, BorderLayout.EAST);
         footer.add(statusLabel, BorderLayout.CENTER);
+        footer.add(ackLabel, BorderLayout.WEST);
         bottom.add(footer, BorderLayout.SOUTH);
         conversation.add(bottom, BorderLayout.SOUTH);
         conversation.setBorder(new EmptyBorder(0, 0, 10, 10));
@@ -96,6 +107,7 @@ public final class ChatGUI extends JFrame {
 
         roomModel.addElement("lobby");
         setConnected(false);
+        pendingTimer.start();
         connectButton.addActionListener(e -> { if (connected) disconnect(); else connect(); });
         composeField.addActionListener(e -> sendMessage());
         sendButton.addActionListener(e -> sendMessage());
@@ -134,13 +146,15 @@ public final class ChatGUI extends JFrame {
         refreshUsers.addActionListener(e -> send("USERS"));
         historyButton.addActionListener(e -> { if (privateWith != null) send("DMHISTORY", privateWith); else send("HISTORY"); });
         addWindowListener(new WindowAdapter() {
-            @Override public void windowClosing(WindowEvent e) { disconnect(); dispose(); }
+            @Override public void windowClosing(WindowEvent e) { pendingTimer.stop(); disconnect(); dispose(); }
         });
     }
 
     private void setConnected(boolean active) {
         connected = active;
         connectButton.setText(active ? "Disconnect" : "Connect");
+        connectionLabel.setText(active ? "● Connected" : "● Offline");
+        connectionLabel.setForeground(active ? new Color(20, 125, 75) : Color.GRAY);
         hostField.setEnabled(!active);
         portField.setEnabled(!active);
         nameField.setEnabled(!active);
@@ -154,28 +168,36 @@ public final class ChatGUI extends JFrame {
         final int port;
         try { port = Integer.parseInt(portField.getText().trim()); }
         catch (NumberFormatException e) { alert("Port must be a number."); return; }
-        if (host.isEmpty() || name.isEmpty() || port < 1 || port > 65535) { alert("Enter a valid host, port and username."); return; }
+        if (host.isEmpty() || port < 1 || port > 65535) { alert("Enter a valid host and port."); return; }
+        if (!name.matches("[A-Za-z0-9_-]{1,20}")) { alert("Username must be 1-20 letters, digits, underscores, or hyphens."); return; }
         connectButton.setEnabled(false);
         statusLabel.setText("Connecting...");
+        connectionLabel.setText("● Connecting");
+        connectionLabel.setForeground(new Color(170, 110, 0));
         final int version = ++sessionVersion;
         new Thread(() -> {
+            final Socket next = new Socket();
             try {
-                Socket next = new Socket(host, port);
+                next.connect(new InetSocketAddress(host, port), 5_000);
+                next.setSoTimeout(10_000); // handshake only
                 BufferedReader input = new BufferedReader(new InputStreamReader(next.getInputStream(), StandardCharsets.UTF_8));
                 PrintWriter output = new PrintWriter(new OutputStreamWriter(next.getOutputStream(), StandardCharsets.UTF_8), true);
                 output.println(Protocol.encode("HELLO", name));
                 String initial = input.readLine();
                 if (initial == null) throw new IOException("Server closed the connection.");
                 String[] reply = Protocol.decode(initial);
-                if (!"WELCOME".equals(reply[0])) {
+                if (reply.length < 1 || !"WELCOME".equals(reply[0])) {
                     next.close();
                     throw new IOException(reply.length > 1 ? reply[1] : "Login rejected.");
                 }
+                if (reply.length < 3) throw new IOException("Invalid WELCOME response.");
+                next.setSoTimeout(0);
                 SwingUtilities.invokeLater(() -> {
                     if (version != sessionVersion) { try { next.close(); } catch (IOException ignored) {} return; }
                     socket = next; writer = output; username = reply[1]; room = reply[2]; privateWith = null;
                     roomModel.clear(); roomModel.addElement(room);
                     messages.setText(""); channelLabel.setText("# " + room);
+                    pending.clear(); nextRequestId = 0; ackLabel.setText("ACK: —");
                     setConnected(true); connectButton.setEnabled(true);
                     statusLabel.setText("Connected as " + username);
                     send("ROOMS"); send("USERS"); send("HISTORY");
@@ -196,33 +218,74 @@ public final class ChatGUI extends JFrame {
                         alert(ex.getMessage());
                     }
                 });
+            } finally {
+                try { next.close(); } catch (IOException ignored) { }
             }
         }, "gui-network-receiver").start();
     }
     private void disconnect() {
         ++sessionVersion;
         PrintWriter w = writer;
-        if (w != null) w.println(Protocol.encode("QUIT"));
+        if (w != null) { w.println(Protocol.encode("QUIT")); }
         Socket s = socket;
         if (s != null) { try { s.close(); } catch (IOException ignored) {} }
         disconnected("Disconnected.");
     }
     private void disconnected(String text) {
+        Socket oldSocket = socket;
         socket = null; writer = null; username = "";
+        if (oldSocket != null) try { oldSocket.close(); } catch (IOException ignored) {}
+        pending.clear();
         setConnected(false); connectButton.setEnabled(true);
         statusLabel.setText(text);
         userModel.clear();
     }
-    private void send(String... fields) {
+    private boolean send(String... fields) {
         PrintWriter w = writer;
-        if (connected && w != null) w.println(Protocol.encode(fields));
+        if (!connected || w == null) return false;
+        try {
+            w.println(Protocol.encode(fields));
+            if (w.checkError()) {
+                disconnected("Connection lost while sending.");
+                return false;
+            }
+            return true;
+        } catch (IllegalArgumentException ex) {
+            statusLabel.setText("Message not sent: " + ex.getMessage());
+            return false;
+        }
+    }
+    private boolean sendWithAck(String type, String... args) {
+        String id = Long.toString(++nextRequestId);
+        String[] fields = new String[args.length + 2];
+        fields[0] = type;
+        fields[1] = id;
+        System.arraycopy(args, 0, fields, 2, args.length);
+        long started = System.nanoTime();
+        if (send(fields)) {
+            pending.put(id, started);
+            ackLabel.setText("ACK: Pending #" + id);
+            return true;
+        }
+        return false;
+    }
+    private void expirePending() {
+        if (pending.isEmpty()) return;
+        long now = System.nanoTime();
+        int before = pending.size();
+        pending.entrySet().removeIf(e -> now - e.getValue() > 15_000_000_000L);
+        if (pending.size() < before) {
+            ackLabel.setText("ACK: Timed out waiting for server");
+            statusLabel.setText("Some messages were not acknowledged.");
+        }
     }
     private void sendMessage() {
         String value = composeField.getText().trim();
         if (!connected || value.isEmpty()) return;
-        if (privateWith != null) send("DM", privateWith, value);
-        else send("SAY", value);
-        composeField.setText("");
+        boolean sent = privateWith != null
+                ? sendWithAck("DM", privateWith, value)
+                : sendWithAck("SAY", value);
+        if (sent) composeField.setText("");
     }
     private void alert(String text) { JOptionPane.showMessageDialog(this, text, "Chat system", JOptionPane.WARNING_MESSAGE); }
     private void append(String text) {
@@ -254,6 +317,18 @@ public final class ChatGUI extends JFrame {
             case "HISTORY_MSG" -> { if (e.length >= 4) append(e[1] + " | " + e[2] + ": " + e[3]); }
             case "HISTORY_END" -> append("--- End of history ---");
             case "INFO" -> { if (e.length >= 2) { statusLabel.setText(e[1]); send("USERS"); } }
+            case "ACK" -> {
+                if (e.length >= 4) {
+                    Long started = pending.remove(e[1]);
+                    if (started != null) {
+                        double milliseconds = (System.nanoTime() - started) / 1_000_000.0;
+                        String notice = String.format(Locale.ROOT, "%s #%s: %s (%.2f ms RTT)",
+                                e[2], e[1], e[3], milliseconds);
+                        ackLabel.setText("ACK: " + notice);
+                        statusLabel.setText("Server processed message #" + e[1]);
+                    }
+                }
+            }
             case "ERROR" -> { if (e.length >= 2) { statusLabel.setText("Error: " + e[1]); append("[Error] " + e[1]); } }
             default -> { }
         }
