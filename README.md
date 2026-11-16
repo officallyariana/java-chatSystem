@@ -2,9 +2,7 @@
 
 A Java TCP networking project with a multithreaded chat server, command-line client, Java Swing GUI, chat rooms, private messages, message history, and integration tests.
 
-**For classmates:** You can **download and test the entire system independently on your own computer** (run both server and clients), or **connect several computers to one shared server** for a group demonstration. You do not need the project owner's computer to be running for independent testing.
-
-> **Security:** This classroom version uses username-only access and plain TCP. Use localhost, a trusted classroom LAN, or a restricted private VPN. Do **not** forward port 5555 through your router or expose the plain-TCP server on a public cloud IP. Do not send sensitive information.
+**For contributors:** You can **download and test the entire system independently on your own computer** (run both server and clients), or **connect several computers to one shared server** for a group demonstration.
 
 ## 1. What to install
 
