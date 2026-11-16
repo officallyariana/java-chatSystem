@@ -1,218 +1,213 @@
 # Enhanced Network-Based Chat System — Java
 
-A Java TCP chat application built for a networking class. Multiple people can connect to **one running server** from separate computers, chat in rooms, send direct messages, and retrieve saved history. You can use either the **Java Swing GUI** or a terminal client.
+A Java TCP networking project with a multithreaded chat server, command-line client, Java Swing GUI, chat rooms, private messages, message history, and integration tests.
 
-> **For classmates:** You do **not** each start a server. One person hosts `ChatServer`; everybody else runs `ChatGUI` (or `ChatClient`) and enters the host's IP address. Start with a trusted local network or an approved private VPN. This classroom build uses plain TCP and username-only access; **do not forward port 5555 to the open internet** or share sensitive messages.
+**For classmates:** You can **download and test the entire system independently on your own computer** (run both server and clients), or **connect several computers to one shared server** for a group demonstration. You do not need the project owner's computer to be running for independent testing.
 
-## What you need
+> **Security:** This classroom version uses username-only access and plain TCP. Use localhost, a trusted classroom LAN, or a restricted private VPN. Do **not** forward port 5555 through your router or expose the plain-TCP server on a public cloud IP. Do not send sensitive information.
 
-- **JDK 17 or newer** installed on each participating computer. Check in a terminal:
+## 1. What to install
+
+- Java Development Kit **JDK 17 or newer**. Verify in PowerShell:
   ```powershell
   java -version
   javac -version
   ```
-- Windows PowerShell (instructions below), or a macOS/Linux terminal.
-- The project source code from **[GitHub: officallyariana/java-chatSystem](https://github.com/officallyariana/java-chatSystem)**.
-- The **server host's IP address** and **port** (default `5555`) if connecting from another computer.
+- Windows PowerShell (steps below), or a terminal on macOS/Linux.
+- No database installation or third-party Java libraries are required.
 
-No third-party Java libraries or database installation are required. The desktop GUI uses Java Swing.
+## 2. Download the source on your own computer
 
-## 1. Download the project (every classmate)
+**No Git required:** Open [the GitHub repository], choose **Code → Download ZIP**, extract it, and open PowerShell inside the extracted folder containing `src`.
 
-**Option A — No Git needed:** Open the [repository](https://github.com/officallyariana/java-chatSystem), select **Code → Download ZIP**, extract it, and open PowerShell in the extracted `java-chatSystem` folder.
-
-**Option B — Using Git:**
+**Using Git:**
 
 ```powershell
-git clone https://github.com/officallyariana/java-chatSystem.git
+git clone 
 cd java-chatSystem
 ```
 
-Make sure `src` contains `ChatServer.java`, `ChatClient.java`, `ChatGUI.java`, `Protocol.java`, and `HistoryStore.java`. If `ChatGUI.java` is missing, ask the project maintainer to push the latest files to GitHub before continuing.
+Verify your source files are present:
 
-## 2. Compile the project (every classmate)
+```powershell
+Get-ChildItem .\src\*.java
+```
 
-Run these commands **inside the project folder**:
+Expected files include `ChatServer.java`, `ChatClient.java`, `Protocol.java`, `HistoryStore.java`, `ChatIntegrationTest.java`, and `ChatGUI.java`. **If the GUI or latest tests are missing, the project maintainer must push the updated files to GitHub.**
+
+## 3. Compile the project (every computer)
+
+In PowerShell, **from the project folder**:
 
 ```powershell
 New-Item -ItemType Directory -Force out | Out-Null
 javac -encoding UTF-8 -d out (Get-ChildItem .\src\*.java).FullName
 ```
 
-**macOS/Linux** equivalent:
+A successful compile returns without errors. It creates `.class` files in `out`.
+
+**macOS/Linux:**
 
 ```bash
 mkdir -p out
 javac -encoding UTF-8 -d out src/*.java
 ```
 
-If compilation succeeds, compiled `.class` files appear under `out/`.
+> **Windows PowerShell:** Do not use `javac ... src/*.java` directly; PowerShell may not expand the wildcard as expected. Use `Get-ChildItem` above.
 
-> PowerShell tip: Use `(Get-ChildItem .\src\*.java).FullName`, not just `src/*.java`, to avoid `Invalid filename` errors.
+## 4. Option A — Test everything on your own computer (recommended first)
 
-## 3. Pick a connection setup
+Every classmate can do this separately, even at home and without coordinating with others.
 
-### A. One computer, multiple windows (quick practice)
-
-The person testing starts the server in one terminal:
+### Terminal 1 — Run your own server
 
 ```powershell
 java -cp out ChatServer
 ```
 
-Keep that terminal open. Open two **new** terminals in the same folder and launch:
+Leave this terminal open. The server uses TCP port **5555** by default and saves conversation history in a local `data` folder.
+
+### Terminal 2 — Run your first GUI client
 
 ```powershell
 java -cp out ChatGUI
 ```
 
-Run the GUI command a second time to open another client window. Connect as `Alice` and `Bob`, both using **Host `127.0.0.1` / Port `5555`**.
+Enter **Host:** `127.0.0.1`, **Port:** `5555`, **Username:** `Alice`, and click **Connect**.
 
-### B. Different computers on the same trusted Wi-Fi/LAN
+### Terminal 3 — Run your second GUI client
 
-**Server host only:**
+```powershell
+java -cp out ChatGUI
+```
 
-1. Compile the project and run `java -cp out ChatServer`.
-2. Find the host's IPv4 address in PowerShell:
-   ```powershell
-   ipconfig
-   ```
-   Look for the **IPv4 Address** on the active network adapter, for example `192.168.1.50` (**example only**).
-3. If Windows Firewall blocks connections, permit **inbound TCP 5555 only on the trusted Private network** (Windows Defender Firewall → Advanced settings → Inbound Rules). Do not create an unrestricted public-facing rule.
-4. Tell classmates the host's **actual private IP** and port `5555`.
+Enter **Host:** `127.0.0.1`, **Port:** `5555`, **Username:** `Bob`.
 
-**Classmates:**
+You now have **one server and two independent clients running on your own computer**. Open a third GUI with username `Charlie` if you want to test three clients. Keep the server terminal visible to observe connection and message logs.
 
-1. Join the same trusted network as the host.
-2. Launch the GUI:
-   ```powershell
-   java -cp out ChatGUI
-   ```
-3. Enter the **host's private IP** (not `127.0.0.1`), port `5555`, and a **unique username**.
-4. Click **Connect**.
-
-**Remember:** `127.0.0.1` always refers to *your own* computer. A classmate entering it will not reach somebody else's server.
-
-### C. Different locations / different networks (private demonstration)
-
-Use a **private VPN such as Tailscale** if the host and classmates are in different locations. Each participating device must be authorized to reach the host through Tailscale. The host starts `ChatServer`, and classmates enter the **host's Tailscale IP** in ChatGUI. Follow the VPN's device-sharing and access instructions, and limit firewall access to the VPN interface where practical.
-
-This does **not** turn the app into a secure, public messaging service: the classroom server still lacks individual account authentication and application-level TLS. **Do not use router port forwarding or publish the plain-TCP service on a cloud public IP.** A public deployment requires TLS, proper account authentication, and authorization for private-message history.
-
-## 4. Connect in ChatGUI
-
-After starting `ChatGUI`, use these settings:
-
-| Field | On same computer | Classmate on another computer |
-|---|---|---|
-| Host | `127.0.0.1` | Server host's LAN/VPN IP |
-| Port | `5555` | `5555` (unless changed by host) |
-| Username | `Alice` | Choose a unique name, e.g. `Bob` |
-
-Click **Connect**. You should see your connection status change to connected. A duplicate username (including different capitalization) will be rejected.
-
-**GUI tips:**
-- Type a message and press **Enter** or **Send** to chat in your current room.
-- Use **+ Join** or double-click a room in the room list to join/switch rooms.
-- Double-click a user to open private messaging; use **Room chat** to return to the room.
-- Use **Refresh users**, **Refresh rooms**, and **Load history** as needed.
-- The newer GUI may display a server acknowledgment and round-trip time after sending a message. An `ACK` indicates server processing, **not** proof that every recipient saw the message.
-- Click **Disconnect** before closing the window.
-
-## 5. Optional: terminal client
-
-From the project folder, connect to a server on your own machine:
+**Alternative terminal clients:**
 
 ```powershell
 java -cp out ChatClient --username Alice
+java -cp out ChatClient --username Bob
 ```
 
-Connect to a server on another trusted machine:
+Run each command in a separate terminal. Do not connect two clients with the same username at the same time.
 
-```powershell
-java -cp out ChatClient --host 192.168.1.50 --port 5555 --username Bob
-```
+### Independent testing checklist
 
-Replace the example IP address with the **actual host's IP**. Useful terminal commands:
+- [ ] Both Alice and Bob connect successfully.
+- [ ] Alice sends a message in `lobby`; Bob sees it.
+- [ ] Alice and Bob join `project`; Charlie remains in `lobby` and does not see messages to `project`.
+- [ ] Alice sends Bob a private message; only the intended conversation participants see it.
+- [ ] Disconnect Bob and reconnect; retrieve room history.
+- [ ] Try logging in with `alice` while `Alice` is connected; duplicate username is rejected.
+- [ ] Close one client unexpectedly; the server stays running.
+- [ ] Observe acknowledgment or response-time information if your copy includes the updated GUI/client.
 
-| Command | Purpose |
-|---|---|
-| Just type a message | Send to your current room |
+## 5. Option B — Test together from different computers on the same Wi-Fi/LAN
+
+**Only one student hosts the server** for this mode. Everyone else runs a client; you can still run a GUI on the host computer.
+
+**On the host's computer:**
+
+1. Complete steps 1–3, then run `java -cp out ChatServer`.
+2. Run `ipconfig` and find the active network's IPv4 address (example: `192.168.1.50`).
+3. Allow inbound **TCP 5555** in Windows Firewall for the **trusted Private network only**, if required. Prefer limiting access to classmates' devices or the local subnet.
+4. Share the **actual host LAN IP** and port `5555` with classmates.
+
+**On each classmate's computer:**
+
+1. Complete steps 1–3 and join the same trusted network.
+2. Run `java -cp out ChatGUI`.
+3. Enter the **host computer's LAN IP**, **port `5555`**, and a **unique username**.
+4. Click **Connect**.
+
+**Example only:** If the host IP is `192.168.1.50`, Bob enters `192.168.1.50` — **not** `127.0.0.1`. `127.0.0.1` always means *this computer*.
+
+**Different locations:** A restricted private VPN (such as Tailscale) can connect approved devices without exposing port 5555 publicly. The host runs the server; clients enter the host's VPN IP. A public internet deployment needs encryption and proper authentication/authorization beyond this classroom build.
+
+## 6. How to use the chat
+
+**Java Swing GUI:**
+
+- Type into the message field and press **Enter** or **Send**.
+- Select **+ Join**, or double-click a room, to enter another room.
+- Double-click an online username to start a private conversation.
+- Select **Room chat** to return to room messages.
+- Use **Load history**, **Refresh rooms**, and **Refresh users** as needed.
+- Select **Disconnect** when finished.
+
+**Terminal client commands:**
+
+| Command | Description |
+| --- | --- |
+| `Hello everyone` | Send to the current room |
 | `/join project` | Create/join the `project` room |
-| `/rooms` | Show rooms |
-| `/users` | Show online users |
-| `/dm Alice Hello!` | Send Alice a private message |
-| `/history` | Show recent room history |
-| `/dmhistory Alice` | Show recent private-message history |
+| `/rooms` | List rooms |
+| `/users` | List online users |
+| `/dm Bob Hello!` | Send a private message |
+| `/history` | Show recent room messages |
+| `/dmhistory Bob` | Show recent private messages |
 | `/help` | Show commands |
 | `/quit` | Disconnect |
 
-## 6. A 5-minute test with three classmates
+## 7. Run automated networking tests on your own computer
 
-1. **Host:** Start `ChatServer` and keep the server terminal visible.
-2. **Alice, Bob, Charlie:** Launch separate GUIs and connect with unique usernames.
-3. **Alice + Bob:** Join the `project` room. **Charlie:** Remain in `lobby`.
-4. **Alice:** Send a room message; **Bob** should see it, **Charlie** should not.
-5. **Alice:** Double-click Charlie and send a private message. Only Alice and Charlie should see the DM.
-6. **Bob:** Click **Load history** or reconnect and retrieve previous room messages.
-7. **Charlie:** Disconnect; the host should observe the disconnection without the server stopping.
-8. **Host:** Show the server logs, then run integration tests **in a separate terminal after stopping the manually running server if desired**:
-   ```powershell
-   java -cp out ChatIntegrationTest
-   ```
-   In the updated test build, the expected final line is `PASS: 36 integration assertions.` Actual results depend on the version downloaded and must be verified on your machine.
+Each classmate can run the integration suite **without anyone else's server**. Open a separate terminal in the project folder and run:
 
-## 7. Troubleshooting
+```powershell
+java -cp out ChatIntegrationTest
+```
 
-| Problem | What to check |
-|---|---|
-| `javac` not recognized | Install JDK 17+; reopen terminal; check `javac -version` |
-| `Invalid filename: src/*.java` | Use the PowerShell `Get-ChildItem` compile command above |
-| `Could not find or load main class` | Be in the project folder; compile first; run `java -cp out ChatServer` or `ChatGUI` |
-| `Connection refused` | Host server running? Correct IP and port? Firewall allowing trusted network traffic? |
-| Connection times out | Check both devices' network/VPN access and server firewall |
-| Username already online | Choose a different username; usernames are case-insensitive |
-| Chat window opens but won't connect | Confirm `ChatServer` is running and you entered the **server host's**, not your own, IP |
-| History missing | The server stores history on the **host's computer**; check which server instance you connected to |
-| GUI isn't in cloned repo | Ask maintainer to commit/push `src/ChatGUI.java` and other updated files |
+The suite starts a temporary server for its tests. In the updated test version, the expected result is:
 
-**Windows network diagnostic (on a classmate's PC):**
+```text
+PASS: 36 integration assertions.
+```
+
+Your actual result depends on the source version you downloaded. The tests cover connections, username validation, room routing, private messages, saved history, malformed/oversized messages, TCP framing, concurrency, acknowledgments, and disconnection handling. For independent testing, you can stop the manually launched server first to avoid confusion about which server you are connecting to.
+
+## 8. How the networking works
+
+```text
+   ChatGUI / ChatClient (Alice) ----\
+   ChatGUI / ChatClient (Bob) -------+---- TCP :5555 ----> ChatServer
+   ChatGUI / ChatClient (Charlie) --/                       |
+                                             sessions, rooms, routing
+                                                            |
+                                                       HistoryStore
+                                                            |
+                                                        local data/
+```
+
+- **TCP sockets:** Provide reliable, ordered byte streams between the server and each client.
+- **Framing:** Each application message is newline-terminated; fields are Base64-encoded UTF-8 and separated by tabs. TCP itself does not provide message boundaries.
+- **Concurrency:** The server handles multiple client connections using threads and coordinates shared user and room state.
+- **Validation and error handling:** The improved server handles invalid requests, oversized frames, duplicate usernames, and unexpected disconnections.
+- **Acknowledgments:** Updated clients can attach request IDs and measure how long a server acknowledgment takes. An ACK is **not** proof that every recipient displayed a message.
+- **History:** Conversation history is stored **on the machine running that particular server**. Independent servers have separate histories.
+
+## 9. Troubleshooting
+
+| Problem | What to do |
+| --- | --- |
+| `javac` not recognized | Install JDK 17+, reopen PowerShell, run `javac -version` |
+| `Invalid filename: src/*.java` | Use the `Get-ChildItem` command in step 3 |
+| `Could not find or load main class` | Compile from the project folder; use `java -cp out ChatServer` or `ChatGUI` |
+| `Address already in use` | Another server is using port 5555; stop it or choose another port with `java -cp out ChatServer --port 5556` |
+| `Connection refused` | Start the server; confirm host/port and firewall |
+| Connect fails between computers | Ensure the same trusted LAN/VPN, correct *host* IP, and firewall access |
+| Duplicate username | Use a different name or disconnect the earlier session |
+| Missing message history | Verify you connected to the same server and its `data` folder |
+| `ChatGUI` missing | Ask the project maintainer to push the latest `src/ChatGUI.java` |
+
+To check reachability from another Windows computer:
 
 ```powershell
 Test-NetConnection SERVER_IP -Port 5555
 ```
 
-Replace `SERVER_IP`. A `TcpTestSucceeded : True` result confirms the TCP port is reachable, but does not guarantee the chat login succeeds.
+Replace `SERVER_IP` with the real host IP. `TcpTestSucceeded : True` proves only that the TCP port is reachable, not that chat login succeeded.
 
-## 8. Technical overview (for the networking assignment)
-
-```text
-  Alice: ChatGUI/ChatClient ----\
-  Bob:   ChatGUI/ChatClient -----+--- TCP port 5555 ---> ChatServer
-  Charlie: ChatGUI/ChatClient --/                         |
-                                     sessions / rooms / routing
-                                                        |
-                                                    HistoryStore
-                                                        |
-                                                    local files
-```
-
-- **TCP:** Provides an ordered, reliable stream of bytes. The application separates messages with **newlines**; each message contains **tab-separated Base64 fields** carrying UTF-8 strings.
-- **Concurrency:** The server handles multiple client sockets using a thread pool and coordinates shared session/room state.
-- **Validation:** The updated build checks usernames, rooms, messages, and malformed/oversized frames.
-- **Acknowledgments:** Optional request IDs let the updated terminal/GUI client measure the time until the server processes a request.
-- **Testing:** `ChatIntegrationTest` exercises client connections, room routing, private messaging, history, duplicate names, malformed input, TCP framing, concurrency, and disconnects.
-
-## 9. Security and privacy limitations
-
-This is a **course demonstration project**, not production chat software. The classroom version accepts usernames without passwords and uses plain TCP. File-based history can be retrieved by someone reconnecting under a previously used username. Do not transmit passwords, private documents, or sensitive information. Only run it within a trusted environment or a carefully restricted private VPN.
-
-## For project maintainers: publish updates
-
-If the README or source files were updated locally, commit and push them so classmates downloading from GitHub receive the newest version:
-
-```powershell
-git add README.md src/
-git commit -m "Document classmate setup and remote LAN access"
-git push origin main
-```
+---
