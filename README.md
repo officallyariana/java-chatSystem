@@ -31,8 +31,7 @@ Verify your source files are present:
 Get-ChildItem .\src\*.java
 ```
 
-Expected files include `ChatServer.java`, `ChatClient.java`, `Protocol.java`, `HistoryStore.java`, `ChatIntegrationTest.java`, and `ChatGUI.java`. **If the GUI or latest tests are missing, the project maintainer must push the updated files to GitHub.**
-
+Expected files include `ChatServer.java`, `ChatClient.java`, `Protocol.java`, `HistoryStore.java`, `ChatIntegrationTest.java`, and `ChatGUI.java`.
 ## 3. Compile the project (every computer)
 
 In PowerShell, **from the project folder**:
