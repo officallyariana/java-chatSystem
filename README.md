@@ -1,27 +1,52 @@
-# Enhanced Network-Based Chat System — Java
+# Network-Based Chat System
 
-A Java TCP chat application built for a networking class. Multiple people can connect to **one running server** from separate computers, chat in rooms, send direct messages, and retrieve saved history. You can use either the **Java Swing GUI** or a terminal client.
+> **Deployment status:** The instructions below are for localhost or a **trusted local network**. The classroom version uses plain TCP and username-only identification. **Do not expose port 5555 directly to the public internet** or use the application for sensitive communications. Public deployment requires integrating TLS, authentication, and access controls in both server and clients.
 
-> **For classmates:** You do **not** each start a server. One person hosts `ChatServer`; everybody else runs `ChatGUI` (or `ChatClient`) and enters the host's IP address. Start with a trusted local network or an approved private VPN. This classroom build uses plain TCP and username-only access; **do not forward port 5555 to the open internet** or share sensitive messages.
+## Features
 
-## What you need
+- Multiple simultaneous client connections using TCP sockets and a server-side thread pool
+- Unique usernames (case-insensitive duplicate rejection)
+- Public chat rooms with room-specific messages
+- Direct/private messages between online users
+- Online-user and room lists
+- Persistent room and direct-message history (file-based `HistoryStore`)
+- Command-line client (`ChatClient`) and desktop GUI (`ChatGUI`, Java Swing)
+- Protocol validation, bounded newline-delimited messages, and handling of unexpected disconnections
+- Optional application-level message acknowledgments (`ACK`) with client-side round-trip timing
+- Integration tests covering normal and failure scenarios
 
-- **JDK 17 or newer** installed on each participating computer. Check in a terminal:
-  ```powershell
-  java -version
-  javac -version
-  ```
-- Windows PowerShell (instructions below), or a macOS/Linux terminal.
-- The project source code from **[GitHub: officallyariana/java-chatSystem](https://github.com/officallyariana/java-chatSystem)**.
-- The **server host's IP address** and **port** (default `5555`) if connecting from another computer.
+## Requirements
 
-No third-party Java libraries or database installation are required. The desktop GUI uses Java Swing.
+- **JDK 17 or newer** (`java -version` and `javac -version`)
+- Windows PowerShell, macOS Terminal, or Linux shell
+- No external libraries or database server required
 
-## 1. Download the project (every classmate)
+## Project structure
 
-**Option A — No Git needed:** Open the [repository](https://github.com/officallyariana/java-chatSystem), select **Code → Download ZIP**, extract it, and open PowerShell in the extracted `java-chatSystem` folder.
+```text
+java-chatSystem/
+├── src/
+│   ├── ChatServer.java           # TCP server, sessions, rooms, routing, logs
+│   ├── ChatClient.java           # Terminal client and ACK timing
+│   ├── ChatGUI.java              # Java Swing desktop client
+│   ├── Protocol.java             # UTF-8/Base64 line-based protocol
+│   ├── HistoryStore.java         # Persistent room/private histories
+│   └── ChatIntegrationTest.java  # Automated networking tests
+├── README.md
+├── .gitignore
+├── out/                         # Generated compiled classes (ignored)
+└── data/                        # Generated chat history (ignored)
+```
 
-**Option B — Using Git:**
+## Getting started (Windows PowerShell)
+
+Open PowerShell in the cloned project directory:
+
+```powershell
+cd C:\Users\arian\Desktop\java-chatSystem
+```
+
+Or clone the repository first:
 
 ```powershell
 git clone https://github.com/officallyariana/java-chatSystem.git
