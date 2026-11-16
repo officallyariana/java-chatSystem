@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
-/** Persists message records safely with standard-library files; no database driver required. */
 public final class HistoryStore {
     private final Path root;
     public HistoryStore(Path root) throws IOException {

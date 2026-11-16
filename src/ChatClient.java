@@ -3,7 +3,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
-/** Interactive command-line chat client. Run one process per username. */
 public final class ChatClient {
     private static void show(String[] event) {
         switch (event[0]) {

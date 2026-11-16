@@ -2,10 +2,8 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.util.*;
 import java.util.concurrent.*;
 
-/** Runs real sockets against the server; no JUnit dependency needed. */
 public final class ChatIntegrationTest {
     private static int assertions = 0;
     private static final class Peer implements AutoCloseable {

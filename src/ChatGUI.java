@@ -1,13 +1,12 @@
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 
-/** Swing frontend for the existing ChatServer wire protocol. JDK 17+. */
 public final class ChatGUI extends JFrame {
     private final JTextField hostField = new JTextField("127.0.0.1", 11);
     private final JTextField portField = new JTextField("5555", 5);
