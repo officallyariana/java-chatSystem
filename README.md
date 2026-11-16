@@ -54,8 +54,6 @@ javac -encoding UTF-8 -d out src/*.java
 
 ## 4. Option A — Test everything on your own computer (recommended first)
 
-Every classmate can do this separately, even at home and without coordinating with others.
-
 ### Terminal 1 — Run your own server
 
 ```powershell
