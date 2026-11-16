@@ -43,7 +43,7 @@ java-chatSystem/
 Open PowerShell in the cloned project directory:
 
 ```powershell
-cd C:\Users\arian\Desktop\java-chatSystem
+cd C:\Users\\java-chatSystem
 ```
 
 Or clone the repository first:
